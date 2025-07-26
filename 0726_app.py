@@ -1,6 +1,27 @@
 import streamlit as st
 import pandas as pd
 
+def get_rates_by_task_count(num_tasks):
+
+    # 新优化算法：指数型快速递减
+    rates = []
+    if num_tasks <= 1:
+        return [80]
+    
+    # 计算递减系数 (从80%到2%)
+    start_rate = 80.0
+    end_rate = 2.0
+    decay_factor = (end_rate / start_rate) ** (1.0/(num_tasks-1))
+    
+    for i in range(num_tasks):
+        rate = start_rate * (decay_factor ** i)
+        rates.append(round(rate, 2))
+    
+    # 确保最后一个任务正好是2%
+    rates[-1] = end_rate
+    
+    return rates
+    
 def calculate_reference_rewards(cpi, reward_threshold_percent, num_tasks, task_data):
     """计算参考奖励金额"""
     reward_threshold = reward_threshold_percent / 100  # 转换为小数
@@ -28,7 +49,7 @@ def main():
         st.session_state.task_data = None
         st.session_state.reference_data = None
         st.session_state.adjusted_data = None
-        st.session_state.num_tasks = 6  # 默认任务数量
+        st.session_state.num_tasks = 8  # 默认任务数量
     
     # 顶部筛选框（始终显示）
     st.header("基础参数设置")
@@ -52,11 +73,12 @@ def main():
     # 第一阶段：任务达成率输入
     st.header("第一阶段：任务达成率输入")
     
-    # 初始化或更新任务数据
+    # 初始化或更新任务数据（使用智能默认值）
     if st.session_state.task_data is None or len(st.session_state.task_data) != num_tasks:
+        default_rates = get_rates_by_task_count(num_tasks)
         st.session_state.task_data = pd.DataFrame({
             '任务名称': [f'任务{i+1}' for i in range(num_tasks)],
-            '达成率': [100.0] * num_tasks
+            '达成率': default_rates
         })
     
     # 显示可编辑表格
@@ -66,7 +88,7 @@ def main():
             "达成率": st.column_config.NumberColumn(
                 format="%.2f %%",
                 min_value=0.0,
-                max_value=1000.0
+                max_value=100.0
             )
         },
         num_rows="fixed",
